@@ -3,7 +3,7 @@ const fs = require('fs');
 const { getData } = require('./sks.js');
 const moment = require('moment-timezone'); // require
 moment.locale("tr");
-moment().tz("Europe/Istanbul").format();
+moment.tz.setDefault("Europe/Istanbul");
 const getAylikMenu = require('./aylik.js');
 const aylikMenu = getAylikMenu();
 
