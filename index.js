@@ -50,8 +50,8 @@ async function checkData() {
         if (day.diff(moment()) > 0) {
             let date;
             if (lastMessage)
-                date = new Date(lastMessage.date * 1000).toLocaleDateString("tr");
-            let nowDate = new Date().toLocaleDateString("tr");
+                date = moment(lastMessage.date * 1000).format("DD.MM.YYYY");
+            let nowDate = moment().format("DD.MM.YYYY");
 
             if (date != nowDate && aylikMenu[nowDate]) {
                 lastMessage = await bot.telegram.sendPhoto(CHANNEL_ID, { source: "placeholder.png" }, {
@@ -83,8 +83,8 @@ async function checkData() {
         await sendMessage(data);
         await updateChannel();
     } else {
-        let date = new Date(channel.pinned_message.date * 1000).toLocaleDateString("tr");
-        let nowDate = new Date().toLocaleDateString("tr");
+        let date = moment(channel.pinned_message.date * 1000).format("DD.MM.YYYY");
+        let nowDate = moment().format("DD.MM.YYYY");
 
         if (date != nowDate && moment().hours() >= 9) {
             await sendMessage(data);
@@ -116,8 +116,8 @@ async function sendMessage(data) {
     }
 
     try {
-        let date = new Date(lastMessage.date * 1000).toLocaleDateString("tr");
-        let nowDate = new Date().toLocaleDateString("tr");
+        let date = moment(lastMessage.date * 1000).format("DD.MM.YYYY");
+        let nowDate = moment().format("DD.MM.YYYY");
         if (date == nowDate) {
             await bot.telegram.editMessageMedia(CHANNEL_ID, lastMessage.message_id, null, {
                 media: data.imgUrl || { source: "placeholder.png" },
