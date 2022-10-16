@@ -1,0 +1,29 @@
+{
+  "name": "auyemekbot",
+  "version": "0.1.0",
+  "description": "https://t.me/auyemekhane",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "dotenv": "^16.0.3",
+    "moment": "^2.29.4",
+    "moment-timezone": "^0.5.37",
+    "node-fetch": "^2.6.7",
+    "node-html-parser": "^6.1.1",
+    "telegraf": "^4.10.0"
+  },
+  "engines": {
+    "node": "16.17.0",
+    "npm": "8.15.0"
+  },
+  "nodemonConfig": {
+    "ignore": [
+      "./test/**"
+    ]
+  }
+}
