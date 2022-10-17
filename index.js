@@ -9,7 +9,7 @@ const aylikMenu = getAylikMenu();
 
 require('dotenv').config();
 
-const { BOT_TOKEN, CHANNEL_ID, ADMIN_DM_ID } = process.env;
+const { BOT_TOKEN, CHANNEL_ID, ADMIN_DM_ID, DB_CHANNEL_ID } = process.env;
 
 const bot = new Telegraf(BOT_TOKEN);
 
@@ -19,13 +19,28 @@ async function updateChannel() {
     channel = await bot.telegram.getChat(CHANNEL_ID);
 }
 
+/** @type {import('typegram').ChatFromGetChat} */
+let dbChannel;
 /** @type {import('typegram').Message.PhotoMessage} */
 let lastMessage;
 
-let checkInterval = 5 * 60 * 1000;
 ~async function () {
+    dbChannel = await bot.telegram.getChat(DB_CHANNEL_ID);
     await updateChannel();
-    console.log(channel);
+    console.log(channel.title, "-> Bot başlatıldı.");
+    try {
+        if (dbChannel.pinned_message) {
+            lastMessage = JSON.parse(dbChannel.pinned_message.text);
+            console.log("[DB] Son mesaj bulundu. ID:", lastMessage.message_id, '~ Tarih:', moment(lastMessage.date ? lastMessage.date * 1000 : undefined).format());
+        } else if (channel.pinned_message) {
+            lastMessage = channel.pinned_message;
+            await bot.telegram.sendMessage(DB_CHANNEL_ID, JSON.stringify(lastMessage), { disable_notification: true })
+                .then(async m => await bot.telegram.pinChatMessage(DB_CHANNEL_ID, m.message_id, { disable_notification: true }))
+                .catch(console.error);
+        }
+    } catch (error) {
+        console.error(error);
+    }
     await checkData();
 }();
 let notUpdatedTodayMessageSent = false;
@@ -59,6 +74,9 @@ async function checkData() {
                     parse_mode: "Markdown",
                     disable_notification: true,
                 });
+                await bot.telegram.sendMessage(DB_CHANNEL_ID, JSON.stringify(lastMessage), { disable_notification: true })
+                    .then(async m => await bot.telegram.pinChatMessage(DB_CHANNEL_ID, m.message_id, { disable_notification: true }))
+                    .catch(console.error);
             }
 
             let timeout = day.diff(moment());
@@ -123,19 +141,23 @@ async function sendMessage(data) {
                 media: data.imgUrl || { source: "placeholder.png" },
                 caption: data.text,
                 parse_mode: "Markdown",
+                type: "photo",
             });
             await bot.telegram.pinChatMessage(CHANNEL_ID, lastMessage.message_id);
 
             return lastMessage;
         }
     } catch (error) {
-
+        await bot.telegram.sendMessage(ADMIN_DM_ID, data.error.message ?? data.error.toString() ?? data.error + "");
     }
 
     lastMessage = await bot.telegram.sendPhoto(CHANNEL_ID, data.imgUrl || { source: "placeholder.png" }, {
         caption: data.text,
         parse_mode: "Markdown",
     });
+    await bot.telegram.sendMessage(DB_CHANNEL_ID, JSON.stringify(lastMessage), { disable_notification: true })
+        .then(async m => await bot.telegram.pinChatMessage(DB_CHANNEL_ID, m.message_id, { disable_notification: true }))
+        .catch(console.error);
     await bot.telegram.pinChatMessage(CHANNEL_ID, lastMessage.message_id);
     return lastMessage;
 }
@@ -211,16 +233,11 @@ bot.on("photo", async ctx => {
 
 bot.on('channel_post', async ctx => {
     await updateChannel();
-    try {
-        fs.writeFileSync("./test/" + ctx.update.channel_post.date + ".json", JSON.stringify(ctx, null, 2));
-    } catch (error) {
-        fs.writeFileSync("./test/" + ctx.update.channel_post.date + ".txt", ctx + "");
-    }
     let { channelPost } = ctx;
     console.log(channelPost.author_signature ?? channelPost.sender_chat?.title ?? channelPost.chat.title, '>>', channelPost.caption ?? channelPost.text, '    --', channelPost.message_id);
 
     if (channelPost.pinned_message) {
-        bot.telegram.deleteMessage(CHANNEL_ID, channelPost.message_id)
+        bot.telegram.deleteMessage(ctx.chat.id, channelPost.message_id)
             .then(b => console.log("Sistem mesajı silindi."))
             .catch(err => console.error("Sistem mesajı silinirken hata meydana geldi:", err))
     }
