@@ -37,7 +37,7 @@ function htmlToData(html) {
             document,
         };
 
-        console.log(result);
+        console.log("Yemek bilgisi çekildi.", result.date);
 
         return result;
     } catch (error) {
