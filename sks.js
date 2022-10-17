@@ -2,6 +2,9 @@ const URL = "http://sks.ankara.edu.tr/yemek-hizmetleri-2/";
 
 const fetch = require('node-fetch');
 const { parse } = require('node-html-parser');
+const moment = require('moment-timezone'); // require
+moment.locale("tr");
+moment.tz.setDefault("Europe/Istanbul");
 
 async function getData() {
     try {
@@ -20,7 +23,7 @@ function htmlToData(html) {
         const imgUrl = document.querySelector("img.img-responsive")?.getAttribute('src');
         const header = document.querySelector("div.content-container")?.parentNode?.querySelector("h2")?.innerText?.trim();
         const date = header?.split?.(' ')?.[0];
-        const isToday = date == new Date().toLocaleDateString("tr");
+        const isToday = date == moment().format("DD.MM.YYYY");
 
         const textLines = Array.from(document.querySelector("div.content-container")?.parentNode?.querySelectorAll("p") ?? []).map(d => d.innerText.trim());
         const rawText = textLines.join('\n') || "Yemek bilgisi bulunamadı";

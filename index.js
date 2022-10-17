@@ -6,7 +6,7 @@ moment.locale("tr");
 moment.tz.setDefault("Europe/Istanbul");
 const getAylikMenu = require('./aylik.js');
 const aylikMenu = getAylikMenu();
-// node -e "const moment = require('moment-timezone'); moment.locale('tr'); moment.tz.setDefault('Europe/Istanbul'); console.log(moment(),moment(moment().format('DD.MM.YYYY') + ' 00:00','DD.MM.YYYY HH:mm'))"
+// node -e "const moment = require('moment-timezone'); moment.locale('tr'); moment.tz.setDefault('Europe/Istanbul'); let day = moment(moment().format('DD.MM.YYYY') + ' 09:00','DD.MM.YYYY HH:mm'); console.log(moment(),day,day.diff(moment()))"
 require('dotenv').config();
 
 const { BOT_TOKEN, CHANNEL_ID, ADMIN_DM_ID, DB_CHANNEL_ID } = process.env;
@@ -58,9 +58,10 @@ async function checkData() {
         return;
     }
     if (!data.isToday) {
-        let day = moment(moment().format('DD.MM.YYYY') + ' 09:00','DD.MM.YYYY HH:mm')
+        let day = moment(moment().format('DD.MM.YYYY') + ' 09:00', 'DD.MM.YYYY HH:mm')
         while (day.weekday() >= 5)
             day.add(1, 'day');
+        console.log("!data.isToday && day=", day, "moment=", moment(), "diff=", day.diff(moment()))
 
         if (day.diff(moment()) > 0) {
             let date;
@@ -115,7 +116,7 @@ async function checkData() {
         await sendMessage(data);
     }
 
-    let day = moment(moment().format('DD.MM.YYYY') + ' 00:00','DD.MM.YYYY HH:mm').add(1, 'day')
+    let day = moment(moment().format('DD.MM.YYYY') + ' 00:00', 'DD.MM.YYYY HH:mm').add(1, 'day')
     while (day.weekday() >= 5)
         day.add(1, 'day');
     let timeout = day.diff(moment());
@@ -201,7 +202,7 @@ SADE PİRİNÇ PİLAVI (360 kkal)
             return;
         }
         if (ctx.message.text == "skipday") {
-            let day = moment(moment().format('DD.MM.YYYY') + ' 09:00','DD.MM.YYYY HH:mm').add(1, 'day')
+            let day = moment(moment().format('DD.MM.YYYY') + ' 09:00', 'DD.MM.YYYY HH:mm').add(1, 'day')
             let timeout = day.diff(moment());
             await bot.telegram.sendMessage(ADMIN_DM_ID, "Bugünlük kontrol atlandı. Sonraki kontrol: ```\n" + moment.duration(timeout).humanize(true) + "```", { parse_mode: "Markdown", disable_notification: true });
             clearTimeout(checkDataTimeout);
