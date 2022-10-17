@@ -58,7 +58,7 @@ async function checkData() {
         return;
     }
     if (!data.isToday) {
-        let day = moment("09:00", "HH:mm")
+        let day = moment(moment().format('DD.MM.YYYY') + ' 09:00','DD.MM.YYYY HH:mm')
         while (day.weekday() >= 5)
             day.add(1, 'day');
 
