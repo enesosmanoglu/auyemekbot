@@ -139,19 +139,33 @@ async function sendMessage(data) {
             let date = moment(lastMessage.date * 1000).format("DD.MM.YYYY");
             let nowDate = moment().format("DD.MM.YYYY");
             if (date == nowDate) {
-                await bot.telegram.editMessageMedia(CHANNEL_ID, lastMessage.message_id, null, {
-                    media: data.imgUrl || { source: "placeholder.png" },
-                    caption: data.text,
-                    parse_mode: "Markdown",
-                    type: "photo",
-                });
+                let error;
+                try {
+                    await bot.telegram.editMessageMedia(CHANNEL_ID, lastMessage.message_id, null, {
+                        media: data.imgUrl || { source: "placeholder.png" },
+                        caption: data.text,
+                        parse_mode: "Markdown",
+                        type: "photo",
+                    });
+                } catch (err) {
+                    error = err;
+                    console.error(err);
+                }
+
+                if (error) {
+                    if (!err.message.includes("message is not modified")) {
+                        throw error;
+                    }
+                    await bot.telegram.sendMessage(ADMIN_DM_ID, error.message ?? error.toString?.() ?? error + "");
+                }
+                
                 await bot.telegram.pinChatMessage(CHANNEL_ID, lastMessage.message_id);
 
                 return lastMessage;
             }
         } catch (error) {
             console.error(error);
-            await bot.telegram.sendMessage(ADMIN_DM_ID, error?.message ?? error.toString?.() ?? error + "");
+            await bot.telegram.sendMessage(ADMIN_DM_ID, error.message ?? error.toString?.() ?? error + "");
         }
 
     lastMessage = await bot.telegram.sendPhoto(CHANNEL_ID, data.imgUrl || { source: "placeholder.png" }, {
