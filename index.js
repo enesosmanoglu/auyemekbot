@@ -116,7 +116,7 @@ async function checkData() {
         await sendMessage(data);
     }
 
-    let day = moment(moment().format('DD.MM.YYYY') + ' 00:00', 'DD.MM.YYYY HH:mm').add(1, 'day')
+    let day = moment(moment().format('DD.MM.YYYY') + ' 00:00:10', 'DD.MM.YYYY HH:mm:ss').add(1, 'day')
     while (day.weekday() >= 5)
         day.add(1, 'day');
     let timeout = day.diff(moment());
