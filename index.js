@@ -151,7 +151,7 @@ async function sendMessage(data) {
             }
         } catch (error) {
             console.error(error);
-            await bot.telegram.sendMessage(ADMIN_DM_ID, data.error?.message ?? data.error.toString?.() ?? data.error + "");
+            await bot.telegram.sendMessage(ADMIN_DM_ID, error?.message ?? error.toString?.() ?? error + "");
         }
 
     lastMessage = await bot.telegram.sendPhoto(CHANNEL_ID, data.imgUrl || { source: "placeholder.png" }, {
