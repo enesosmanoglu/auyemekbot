@@ -66,8 +66,8 @@ async function checkData() {
         if (day.diff(moment()) > 0) {
             let date;
             if (lastMessage)
-                date = moment(lastMessage.date * 1000).format("DD.MM.YYYY");
-            let nowDate = moment().format("DD.MM.YYYY");
+                date = moment(lastMessage.date * 1000).format("D.MM.YYYY");
+            let nowDate = moment().format("D.MM.YYYY");
 
             if (date != nowDate && aylikMenu[nowDate]) {
                 lastMessage = await bot.telegram.sendPhoto(CHANNEL_ID, { source: "placeholder.png" }, {
