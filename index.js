@@ -153,7 +153,7 @@ async function sendMessage(data) {
                 }
 
                 if (error) {
-                    if (!err.message.includes("message is not modified")) {
+                    if (!error.message.includes("message is not modified")) {
                         throw error;
                     }
                     await bot.telegram.sendMessage(ADMIN_DM_ID, error.message ?? error.toString?.() ?? error + "");
@@ -216,7 +216,7 @@ SADE PİRİNÇ PİLAVI (360 kkal)
             return;
         }
         if (ctx.message.text == "skipday") {
-            let day = moment(moment().format('DD.MM.YYYY') + ' 09:00', 'DD.MM.YYYY HH:mm').add(1, 'day')
+            let day = moment(moment().format('DD.MM.YYYY') + ' 00:00:10', 'DD.MM.YYYY HH:mm').add(1, 'day')
             let timeout = day.diff(moment());
             await bot.telegram.sendMessage(ADMIN_DM_ID, "Bugünlük kontrol atlandı. Sonraki kontrol: ```\n" + moment.duration(timeout).humanize(true) + "```", { parse_mode: "Markdown", disable_notification: true });
             clearTimeout(checkDataTimeout);
