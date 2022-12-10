@@ -1,17 +1,15 @@
 const URL = "http://sks.ankara.edu.tr/yemek-hizmetleri-2/";
 
+const fs = require('fs');
+const http = require('http');
+const { Telegraf } = require('telegraf');
+const readXlsxFile = require('read-excel-file/node');
 const { parse } = require('node-html-parser');
 const fetch = require('node-fetch');
-const { Telegraf } = require('telegraf');
-const fs = require('fs');
-const moment = require('moment-timezone'); // require
+const moment = require('moment-timezone');
+
 moment.locale("tr");
 moment.tz.setDefault("Europe/Istanbul");
-const getAylikMenu = require('./aylik.js');
-const aylikMenu = getAylikMenu();
-console.log(aylikMenu);
-// node -e "const moment = require('moment-timezone'); moment.locale('tr'); moment.tz.setDefault('Europe/Istanbul'); let day = moment(moment().format('DD.MM.YYYY') + ' 09:00','DD.MM.YYYY HH:mm'); console.log(moment(),day,day.diff(moment()))"
-// require('dotenv').config();
 
 const { BOT_TOKEN, CHANNEL_ID, ADMIN_DM_ID, DB_CHANNEL_ID } = process.env;
 
@@ -53,7 +51,7 @@ let checkDataTimeout;
 async function checkData() {
     await updateChannel();
 
-    let data = await getData();
+    let data = await getFoodData();
 
     if (data.error) {
         console.error(data.error);
@@ -63,6 +61,10 @@ async function checkData() {
     }
     if (!data.isToday) {
         let day = moment(moment().format('DD.MM.YYYY') + ' 09:00', 'DD.MM.YYYY HH:mm')
+        if (day.weekday() >= 5) {
+            day.subtract(9, 'hours');
+            day.add(10, 'seconds');
+        }
         while (day.weekday() >= 5)
             day.add(1, 'day');
         console.log("!data.isToday && day=", day, "moment=", moment(), "diff=", day.diff(moment()))
@@ -70,26 +72,33 @@ async function checkData() {
         if (day.diff(moment()) > 0) {
             let date;
             if (lastMessage)
-                date = moment(lastMessage.date * 1000).format("D.MM.YYYY");
-            let nowDate = moment().format("D.MM.YYYY");
+                date = moment(lastMessage.date * 1000);
+            let nowDate = moment();
 
-            if (date != nowDate && aylikMenu[nowDate]) {
-                lastMessage = await bot.telegram.sendPhoto(CHANNEL_ID, { source: "placeholder.png" }, {
-                    caption: "```\n" + aylikMenu[nowDate].join('\n') + "```",
-                    parse_mode: "Markdown",
-                    disable_notification: true,
-                });
-                await bot.telegram.sendMessage(DB_CHANNEL_ID, JSON.stringify(lastMessage), { disable_notification: true })
-                    .then(async m => await bot.telegram.pinChatMessage(DB_CHANNEL_ID, m.message_id, { disable_notification: true }))
-                    .catch(console.error);
+            if (date.format("DD.MM.YYYY") != nowDate.format("DD.MM.YYYY")) {
+                let menu = data.monthlyMenu.find(menu => moment(menu[0]).format("DD.MM.YYYY") == nowDate.format("DD.MM.YYYY"));
+
+                if (menu) {
+                    menu.shift();
+                    menu.pop();
+                    lastMessage = await bot.telegram.sendPhoto(CHANNEL_ID, { source: "placeholder.png" }, {
+                        caption: "```\n" + menu.filter(m => m).join('\n') + "```",
+                        parse_mode: "Markdown",
+                        disable_notification: true,
+                    });
+                    await bot.telegram.sendMessage(DB_CHANNEL_ID, JSON.stringify(lastMessage), { disable_notification: true })
+                        .then(async m => await bot.telegram.pinChatMessage(DB_CHANNEL_ID, m.message_id, { disable_notification: true }))
+                        .catch(console.error);
+                }
+
             }
 
             let timeout = day.diff(moment());
-            await bot.telegram.sendMessage(ADMIN_DM_ID, "Sonraki kontrol: ```\n" + moment.duration(timeout).humanize(true) + "```", { parse_mode: "Markdown", disable_notification: true });
+            //await bot.telegram.sendMessage(ADMIN_DM_ID, "Sonraki kontrol: ```\n" + moment.duration(timeout).humanize(true) + "```", { parse_mode: "Markdown", disable_notification: true });
             clearTimeout(checkDataTimeout);
             checkDataTimeout = setTimeout(checkData, timeout);
         } else {
-            if (!notUpdatedTodayMessageSent || notUpdatedCounter % 30 == 0) {
+            if (notUpdatedCounter != 0 && notUpdatedCounter % 30 == 0) {
                 await bot.telegram.sendMessage(ADMIN_DM_ID, "Bugünkü yemek bilgisi hala güncellenmemiş.", { disable_notification: notUpdatedTodayMessageSent });
                 notUpdatedTodayMessageSent = true;
             }
@@ -125,7 +134,7 @@ async function checkData() {
         day.add(1, 'day');
     let timeout = day.diff(moment());
 
-    await bot.telegram.sendMessage(ADMIN_DM_ID, "Günlük yemek gönderildi. Sonraki kontrol: ```\n" + moment.duration(timeout).humanize(true) + "```", { parse_mode: "Markdown", disable_notification: true });
+    // await bot.telegram.sendMessage(ADMIN_DM_ID, "Günlük yemek gönderildi. Sonraki kontrol: ```\n" + moment.duration(timeout).humanize(true) + "```", { parse_mode: "Markdown", disable_notification: true });
     clearTimeout(checkDataTimeout);
     checkDataTimeout = setTimeout(checkData, timeout)
 }
@@ -133,7 +142,7 @@ async function checkData() {
 async function sendMessage(data) {
     await bot.telegram.sendChatAction(CHANNEL_ID, "upload_photo");
     if (!data)
-        data = await getData();
+        data = await getFoodData();
     if (!data.isToday) {
         return;
     }
@@ -144,6 +153,7 @@ async function sendMessage(data) {
             let nowDate = moment().format("DD.MM.YYYY");
             if (date == nowDate) {
                 let error;
+                console.log("imgUrl", data.imgUrl)
                 try {
                     await bot.telegram.editMessageMedia(CHANNEL_ID, lastMessage.message_id, null, {
                         media: data.imgUrl || { source: "placeholder.png" },
@@ -157,7 +167,7 @@ async function sendMessage(data) {
                 }
 
                 if (error) {
-                    if (!err.message.includes("message is not modified")) {
+                    if (!error.message.includes("message is not modified")) {
                         throw error;
                     }
                     await bot.telegram.sendMessage(ADMIN_DM_ID, error.message ?? error.toString?.() ?? error + "");
@@ -220,7 +230,7 @@ SADE PİRİNÇ PİLAVI (360 kkal)
             return;
         }
         if (ctx.message.text == "skipday") {
-            let day = moment(moment().format('DD.MM.YYYY') + ' 09:00', 'DD.MM.YYYY HH:mm').add(1, 'day')
+            let day = moment(moment().format('DD.MM.YYYY') + ' 00:00:10', 'DD.MM.YYYY HH:mm').add(1, 'day')
             let timeout = day.diff(moment());
             await bot.telegram.sendMessage(ADMIN_DM_ID, "Bugünlük kontrol atlandı. Sonraki kontrol: ```\n" + moment.duration(timeout).humanize(true) + "```", { parse_mode: "Markdown", disable_notification: true });
             clearTimeout(checkDataTimeout);
@@ -257,11 +267,11 @@ bot.on('channel_post', async ctx => {
     let { channelPost } = ctx;
     console.log(channelPost.author_signature ?? channelPost.sender_chat?.title ?? channelPost.chat.title, '>>', channelPost.caption ?? channelPost.text, '    --', channelPost.message_id);
 
-    if (channelPost.pinned_message) {
-        bot.telegram.deleteMessage(ctx.chat.id, channelPost.message_id)
-            .then(b => console.log("Sistem mesajı silindi."))
-            .catch(err => console.error("Sistem mesajı silinirken hata meydana geldi:", err))
-    }
+    // if (channelPost.pinned_message) {
+    //     bot.telegram.deleteMessage(ctx.chat.id, channelPost.message_id)
+    //         .then(b => console.log("Sistem mesajı silindi."))
+    //         .catch(err => console.error("Sistem mesajı silinirken hata meydana geldi:", err))
+    // }
     // bot.telegram.editMessageText(CHANNEL_ID,lastMessage.id, null, "");
 
 })
@@ -278,15 +288,59 @@ process.once('SIGTERM', () => bot.stop('SIGTERM'));
 
 
 
-async function getData() {
+async function fetchMonthlyMenu(url) {
+    return new Promise((resolve, reject) => {
+        http.get(url, (stream) => {
+            readXlsxFile(stream)
+                .then((rows) => {
+                    rows = rows.filter(a => a[0] instanceof Date);
+                    // console.log(rows);
+                    resolve(rows);
+                })
+                .catch(reject);
+        });
+    });
+}
+
+async function fetchMonthlyMenuFromFile() {
+    return new Promise((resolve, reject) => {
+        readXlsxFile("AYLIK-YEMEK.xlsx")
+            .then((rows) => {
+                rows = rows.filter(a => a[0] instanceof Date);
+                // console.log(rows);
+                resolve(rows);
+            })
+            .catch(reject);
+    });
+}
+
+async function getFoodData() {
     try {
         let html = await fetch(URL, { method: "GET" }).then(r => r.text());
-        return htmlToData(html);
+        let data = htmlToFoodData(html);
+
+        if (data.monthlyMenuURL) {
+            try {
+                data.monthlyMenu = await fetchMonthlyMenu(data.monthlyMenuURL);
+            } catch (error) {
+                console.error(error);
+            }
+        } else {
+            try {
+                data.monthlyMenu = await fetchMonthlyMenuFromFile();
+            } catch (error) {
+                console.error(error);
+            }
+        }
+
+        // console.log(data);
+
+        return data;
     } catch (error) {
         return { error };
     }
 }
-function htmlToData(html) {
+function htmlToFoodData(html) {
     try {
         const document = parse(html);
 
@@ -299,6 +353,9 @@ function htmlToData(html) {
         const rawText = textLines.join('\n') || "Yemek bilgisi bulunamadı";
         const text = '```\n' + rawText + '```';
 
+        const monthlyMenuURL = document.querySelector('a[href$=".xlsx"]')?.attributes?.href;
+        const monthlyMenu = [];
+
         let result = {
             imgUrl,
             header,
@@ -306,6 +363,8 @@ function htmlToData(html) {
             isToday,
             rawText,
             text,
+            monthlyMenuURL,
+            monthlyMenu,
             textLines,
             document,
         };
